@@ -54,7 +54,7 @@ export default function TiendasPage() {
       <Card>
         <CardContent className="p-4">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Nueva Tienda</p>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               placeholder="Nombre de la tienda..."
               value={newName}

@@ -15,7 +15,7 @@ function ConteoRow({ conteo, onToggleEstado, onDelete }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
       <Card>
-        <CardContent className="p-4 flex items-center gap-4">
+        <CardContent className="p-4 flex flex-wrap items-center gap-3 sm:gap-4">
           <div className={`p-2 rounded-lg ${estadoAbierto ? 'bg-green-500/10' : 'bg-muted'}`}>
             <FileSpreadsheet className={`w-5 h-5 ${estadoAbierto ? 'text-green-600' : 'text-muted-foreground'}`} />
           </div>
@@ -33,7 +33,7 @@ function ConteoRow({ conteo, onToggleEstado, onDelete }) {
           <Badge variant={estadoAbierto ? 'default' : 'secondary'}>
             {estadoAbierto ? 'Abierto' : 'Cerrado'}
           </Badge>
-          <div className="flex gap-1">
+          <div className="flex gap-1 ml-auto">
             <Button
               size="icon"
               variant="ghost"

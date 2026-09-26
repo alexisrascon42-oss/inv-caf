@@ -94,7 +94,7 @@ export default function CatalogoPage() {
       </div>
 
       {/* Step indicators */}
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {['Subir archivo', 'Mapear columnas', 'Resultado'].map((label, i) => {
           const current = STEPS.indexOf(step);
           return (
