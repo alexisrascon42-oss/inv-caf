@@ -23,9 +23,12 @@ export function useConteos(tiendaId) {
   }, [tiendaId]);
 
   const addConteo = async (nombre_sesion) => {
+    const codigo_acceso = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map(value => (value % 36).toString(36)).join('').toUpperCase();
     const { data, error } = await requireSupabase().from('conteos').insert({
       tienda_id: tiendaId,
       nombre_sesion,
+      codigo_acceso,
       estado: 'abierto',
       created_at: new Date().toISOString()
     }).select().single();

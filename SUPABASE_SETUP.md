@@ -8,6 +8,10 @@
 
 El esquema crea las tablas de tiendas, productos, sesiones, áreas y registros de inventario.
 
+Si el proyecto ya tenía las tablas creadas, ejecuta solamente `supabase/migrations/20260926_access_codes.sql` para agregar los códigos de acceso a las sesiones.
+
+En **Authentication > Providers**, habilita Email para permitir el registro del administrador. Supabase puede pedir confirmación de correo antes del primer inicio de sesión.
+
 ## 2. Configurar la aplicación localmente
 
 Copia `.env.example` como `.env.local` y reemplaza los valores:
@@ -27,6 +31,13 @@ En el proyecto de Vercel, agrega las mismas variables en **Settings > Environmen
 - `VITE_SUPABASE_ANON_KEY`
 
 Después realiza un nuevo deploy.
+
+## Flujo de acceso
+
+- El administrador se registra o inicia sesión en `/admin/login`.
+- Al crear una sesión de conteo se genera un código de seis caracteres.
+- El operador entra por **Operador de Campo**, escribe ese código, su nombre y el área que contará.
+- Solo las sesiones con estado `abierto` aceptan operadores.
 
 ## Seguridad
 

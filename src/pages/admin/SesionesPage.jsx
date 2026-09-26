@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileSpreadsheet, Plus, Lock, Unlock, Trash2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { FileSpreadsheet, Plus, Lock, Unlock, Trash2, ChevronDown, ChevronUp, Calendar, KeyRound, Copy } from 'lucide-react';
 import { useTiendas } from '../../hooks/useTiendas';
 import { useConteos } from '../../hooks/useConteos';
 import { Button } from '../../components/ui/Button';
@@ -24,6 +24,10 @@ function ConteoRow({ conteo, onToggleEstado, onDelete }) {
             <div className="flex items-center gap-2 mt-0.5">
               <Calendar className="w-3 h-3 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">{fecha}</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-primary font-semibold">
+              <KeyRound className="w-3.5 h-3.5" /> Código: {conteo.codigo_acceso || 'Sin código'}
+              {conteo.codigo_acceso && <button title="Copiar código" onClick={() => navigator.clipboard?.writeText(conteo.codigo_acceso)}><Copy className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
           <Badge variant={estadoAbierto ? 'default' : 'secondary'}>

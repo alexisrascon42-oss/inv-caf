@@ -47,7 +47,7 @@ export default function HomePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => navigate('/admin/tiendas')}>
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => navigate('/admin/login')}>
               <CardContent className="p-6 flex items-center space-x-4">
                 <div className="bg-purple-500/10 p-3 rounded-xl group-hover:bg-purple-500/20 transition-colors">
                   <Settings className="w-6 h-6 text-purple-500" />

@@ -1,9 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Store, Upload, FileSpreadsheet, Download, Home } from 'lucide-react';
+import { Store, Upload, FileSpreadsheet, Download, Home, LogOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 export function Sidebar() {
+  const { user, signOut } = useAuth();
   const navItems = [
     { to: "/admin/tiendas", icon: Store, label: "Tiendas" },
     { to: "/admin/catalogo", icon: Upload, label: "Importar Catálogo" },
@@ -45,6 +47,13 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <div className="p-4 border-t">
+        <p className="text-xs text-muted-foreground truncate mb-2">{user?.email}</p>
+        <button onClick={signOut} className="flex items-center w-full px-3 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+          <LogOut className="w-5 h-5 mr-3" />
+          Cerrar sesión
+        </button>
+      </div>
     </aside>
   );
 }
