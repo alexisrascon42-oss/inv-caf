@@ -15,7 +15,10 @@ export function useTiendas() {
   }, []);
 
   const addTienda = async (nombre) => {
-    const { data, error } = await requireSupabase().from('tiendas').insert({ nombre }).select().single();
+    const client = requireSupabase();
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError || !userData.user || userData.user.is_anonymous) throw new Error('Debes iniciar sesión como administrador.');
+    const { data, error } = await client.from('tiendas').insert({ nombre, owner_id: userData.user.id }).select().single();
     if (error) throw error;
     setTiendas(current => [...current, data].sort((a, b) => a.nombre.localeCompare(b.nombre)));
     return data.id;

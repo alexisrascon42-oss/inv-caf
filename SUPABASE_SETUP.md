@@ -8,9 +8,19 @@
 
 El esquema crea las tablas de tiendas, productos, sesiones, áreas y registros de inventario.
 
-Si el proyecto ya tenía las tablas creadas, ejecuta solamente `supabase/migrations/20260926_access_codes.sql` para agregar los códigos de acceso a las sesiones.
+Si el proyecto ya tenía las tablas creadas, ejecuta `supabase/migrations/20260926_access_codes.sql` y después `supabase/migrations/20260926_rls_restrictions.sql`.
 
 En **Authentication > Providers**, habilita Email para permitir el registro del administrador. Supabase puede pedir confirmación de correo antes del primer inicio de sesión.
+
+En **Authentication > Providers > Anonymous Sign-Ins**, habilita el acceso anónimo. El operador usa una identidad anónima para que las políticas RLS puedan limitarlo a la sesión validada por código.
+
+Si ya existen tiendas, asígnalas una vez al administrador. Primero consulta el UUID del administrador en **Authentication > Users** y después ejecuta:
+
+```sql
+update public.tiendas
+set owner_id = 'UUID_DEL_ADMINISTRADOR'
+where owner_id is null;
+```
 
 ## 2. Configurar la aplicación localmente
 
@@ -41,4 +51,4 @@ Después realiza un nuevo deploy.
 
 ## Seguridad
 
-El esquema inicial deja las tablas accesibles para la clave pública para que la app funcione sin autenticación. Antes de usarla en producción, agrega Supabase Auth y reemplaza las políticas públicas por políticas RLS basadas en usuarios, roles, tiendas y sesiones.
+Las políticas RLS restringen las tiendas y catálogos al administrador propietario. Un operador anónimo solo puede consultar y modificar registros de una sesión abierta que haya reclamado con su código. La clave `anon` sigue siendo pública, pero las reglas de la base de datos son las que protegen los datos.

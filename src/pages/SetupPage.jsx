@@ -18,16 +18,24 @@ export default function SetupPage() {
     if (!codigo.trim()) return;
     setLoading(true);
     setError('');
-    const { data, error: queryError } = await requireSupabase()
-      .from('conteos')
-      .select('*, tiendas(*)')
-      .eq('codigo_acceso', codigo.trim().toUpperCase())
-      .eq('estado', 'abierto')
-      .maybeSingle();
+    const client = requireSupabase();
+    const { data: currentSession } = await client.auth.getSession();
+    if (currentSession.session && !currentSession.session.user.is_anonymous) await client.auth.signOut();
+    const { error: authError } = await client.auth.signInAnonymously();
+    if (authError) {
+      setError('No se pudo iniciar el acceso de operador. Habilita Anonymous Sign-Ins en Supabase.');
+      setLoading(false);
+      return;
+    }
+
+    const { data: accessData, error: queryError } = await client.rpc('claim_conteo_access', {
+      p_codigo: codigo.trim().toUpperCase()
+    });
+    const data = accessData?.[0];
 
     if (queryError) setError(queryError.message);
     else if (!data) setError('No encontramos una sesión abierta con ese código.');
-    else setConteo(data);
+    else setConteo({ ...data, tiendas: { nombre: data.tienda_nombre } });
     setLoading(false);
   };
 
@@ -38,6 +46,7 @@ export default function SetupPage() {
       tiendaNombre: conteo.tiendas?.nombre || 'Tienda',
       conteoId: conteo.id,
       conteoNombre: conteo.nombre_sesion,
+      codigoAcceso: codigo.trim().toUpperCase(),
       operador: operador.trim(),
       area: area.trim()
     }));
