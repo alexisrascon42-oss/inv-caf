@@ -243,6 +243,13 @@ export default function CapturaPage() {
 
       {/* 3. Contenido Principal */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4 pb-32">
+        <UndoToast 
+          show={!!lastAction} 
+          item={lastAction?.item} 
+          onUndo={handleUndo} 
+          onDismiss={() => setLastAction(null)} 
+        />
+
         {/* KPI Cards del Área */}
         <div className="grid grid-cols-3 gap-2.5">
           <div className="bg-card border border-border/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between">
@@ -424,15 +431,7 @@ export default function CapturaPage() {
         )}
       </AnimatePresence>
 
-      {/* 5. Toast para Deshacer último registro */}
-      <UndoToast 
-        show={!!lastAction} 
-        item={lastAction?.item} 
-        onUndo={handleUndo} 
-        onDismiss={() => setLastAction(null)} 
-      />
-
-      {/* 6. Modal para Enviar y Finalizar Conteo */}
+      {/* 5. Modal para Enviar y Finalizar Conteo */}
       <FinalizarConteoModal
         isOpen={showFinalizarModal}
         onClose={() => setShowFinalizarModal(false)}

@@ -21,7 +21,7 @@ export function UndoToast({ show, item, onUndo, onDismiss, duration = 5000 }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
           transition={{ type: "spring", damping: 20, stiffness: 300 }}
-          className="fixed bottom-20 left-4 right-4 z-50 flex items-center justify-between p-3 rounded-2xl bg-foreground text-background shadow-xl"
+          className="relative w-full flex items-center justify-between p-3 rounded-2xl bg-foreground text-background shadow-xl"
         >
           <div className="flex flex-col overflow-hidden">
             <span className="text-sm font-semibold truncate">
