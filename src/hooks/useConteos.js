@@ -15,7 +15,38 @@ export function useConteos(tiendaId) {
       .eq('tienda_id', tiendaId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    setConteos(data || []);
+
+    const enrichedConteos = await Promise.all((data || []).map(async conteo => {
+      const [{ data: detalle, error: detalleError }, { data: noCatalogados, error: noCatalogadosError }] = await Promise.all([
+        requireSupabase().from('registros_detalle').select('operador_nombre, producto_id, cantidad').eq('conteo_id', conteo.id),
+        requireSupabase().from('productos_no_catalogados').select('operador_nombre, nombre_temporal, cantidad').eq('conteo_id', conteo.id)
+      ]);
+      if (detalleError) throw detalleError;
+      if (noCatalogadosError) throw noCatalogadosError;
+
+      const colaboradores = {};
+      (detalle || []).forEach(registro => {
+        const nombre = registro.operador_nombre || 'Sin nombre';
+        if (!colaboradores[nombre]) colaboradores[nombre] = { nombre, productos: new Set(), piezas: 0 };
+        colaboradores[nombre].productos.add(`catalogado:${registro.producto_id}`);
+        colaboradores[nombre].piezas += Number(registro.cantidad) || 0;
+      });
+      (noCatalogados || []).forEach(registro => {
+        const nombre = registro.operador_nombre || 'Sin nombre';
+        if (!colaboradores[nombre]) colaboradores[nombre] = { nombre, productos: new Set(), piezas: 0 };
+        colaboradores[nombre].productos.add(`no-catalogado:${registro.nombre_temporal}`);
+        colaboradores[nombre].piezas += Number(registro.cantidad) || 0;
+      });
+
+      return {
+        ...conteo,
+        colaboradores: Object.values(colaboradores)
+          .map(colaborador => ({ ...colaborador, articulos: colaborador.productos.size, productos: undefined }))
+          .sort((a, b) => b.articulos - a.articulos)
+      };
+    }));
+
+    setConteos(enrichedConteos);
   };
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileSpreadsheet, Plus, Lock, Unlock, Trash2, ChevronDown, ChevronUp, Calendar, KeyRound, Copy } from 'lucide-react';
+import { FileSpreadsheet, Plus, Lock, Unlock, Trash2, ChevronDown, ChevronUp, Calendar, KeyRound, Copy, Users } from 'lucide-react';
 import { useTiendas } from '../../hooks/useTiendas';
 import { useConteos } from '../../hooks/useConteos';
 import { Button } from '../../components/ui/Button';
@@ -29,6 +29,21 @@ function ConteoRow({ conteo, onToggleEstado, onDelete }) {
               <KeyRound className="w-3.5 h-3.5" /> Código: {conteo.codigo_acceso || 'Sin código'}
               {conteo.codigo_acceso && <button title="Copiar código" onClick={() => navigator.clipboard?.writeText(conteo.codigo_acceso)}><Copy className="w-3.5 h-3.5" /></button>}
             </div>
+            {conteo.colaboradores?.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Users className="w-3.5 h-3.5" /> Colaboradores
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {conteo.colaboradores.map(colaborador => (
+                    <span key={colaborador.nombre} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs text-foreground">
+                      <strong>{colaborador.nombre}</strong>
+                      <span className="text-muted-foreground">{colaborador.articulos} artículos · {colaborador.piezas} pzas</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <Badge variant={estadoAbierto ? 'default' : 'secondary'}>
             {estadoAbierto ? 'Abierto' : 'Cerrado'}
