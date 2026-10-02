@@ -17,7 +17,7 @@ export function Sidebar() {
   if (isDevUser(user)) navItems.push({ to: '/admin/dev', icon: Activity, label: 'Dev' });
 
   return (
-    <aside className="w-64 border-r bg-card min-h-screen hidden md:flex flex-col">
+    <aside className="w-64 border-r bg-card min-h-screen hidden lg:flex flex-col">
       <div className="h-16 flex items-center px-6 border-b">
         <h1 className="font-bold text-lg tracking-tight">Inventario Admin</h1>
       </div>

@@ -245,61 +245,52 @@ function ConteoRow({ conteo, onToggleEstado, onUpdateExpiration, onDelete }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
       <Card>
-        <CardContent className="p-4 flex flex-wrap items-center gap-3 sm:gap-4">
-          <div className={`p-2 rounded-lg ${estadoAbierto ? 'bg-green-500/10' : 'bg-muted'}`}>
-            <FileSpreadsheet className={`w-5 h-5 ${estadoAbierto ? 'text-green-600' : 'text-muted-foreground'}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{conteo.nombre_sesion}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <Calendar className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{fecha}</span>
-              {conteo.expires_at && <span className={`text-xs ${vencido ? 'text-destructive' : 'text-muted-foreground'}`}>· {vencido ? 'Vencimiento cumplido' : `Vence ${formatDateTime(conteo.expires_at)}`}</span>}
+        <CardContent className="space-y-3 p-3 sm:p-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className={`mt-0.5 shrink-0 rounded-lg p-2 ${estadoAbierto ? 'bg-green-500/10' : 'bg-muted'}`}>
+              <FileSpreadsheet className={`h-5 w-5 ${estadoAbierto ? 'text-green-600' : 'text-muted-foreground'}`} />
             </div>
-            <div className="flex items-center gap-1.5 mt-2 text-xs text-primary font-semibold">
-              <KeyRound className="w-3.5 h-3.5" /> Código: {conteo.codigo_acceso || 'Sin código'}
-              {conteo.codigo_acceso && <button title="Copiar código" onClick={() => navigator.clipboard?.writeText(conteo.codigo_acceso)}><Copy className="w-3.5 h-3.5" /></button>}
-            </div>
-            {conteo.colaboradores?.length > 0 && (
-              <div className="mt-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                  <Users className="w-3.5 h-3.5" /> Colaboradores
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {conteo.colaboradores.map(colaborador => (
-                    <span key={colaborador.nombre} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs text-foreground">
-                      <strong>{colaborador.nombre}</strong>
-                      <span className="text-muted-foreground">{colaborador.articulos} artículos · {colaborador.piezas} pzas</span>
-                    </span>
-                  ))}
-                </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 break-words font-semibold">{conteo.nombre_sesion}</p>
+                <Badge className="shrink-0" variant={vencido ? 'destructive' : estadoAbierto ? 'default' : 'secondary'}>
+                  {vencido ? 'Vencido' : estadoAbierto ? 'Abierto' : 'Cerrado'}
+                </Badge>
               </div>
-            )}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />{fecha}</span>
+                {conteo.expires_at && <span className={vencido ? 'text-destructive' : ''}>{vencido ? 'Vencimiento cumplido' : `Vence ${formatDateTime(conteo.expires_at)}`}</span>}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <KeyRound className="h-3.5 w-3.5 shrink-0" />
+                <span>Código: {conteo.codigo_acceso || 'Sin código'}</span>
+                {conteo.codigo_acceso && <button className="rounded p-1" aria-label="Copiar código" title="Copiar código" onClick={() => navigator.clipboard?.writeText(conteo.codigo_acceso)}><Copy className="h-3.5 w-3.5" /></button>}
+              </div>
+              {conteo.colaboradores?.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Users className="h-3.5 w-3.5" /> Colaboradores</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {conteo.colaboradores.map(colaborador => (
+                      <span key={colaborador.nombre} className="inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground">
+                        <strong className="break-words">{colaborador.nombre}</strong>
+                        <span className="text-muted-foreground">{colaborador.articulos} artículos · {colaborador.piezas} pzas</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <Badge variant={vencido ? 'destructive' : estadoAbierto ? 'default' : 'secondary'}>
-            {vencido ? 'Vencido' : estadoAbierto ? 'Abierto' : 'Cerrado'}
-          </Badge>
-          <div className="flex gap-1 ml-auto">
-            <Button size="sm" variant="outline" title={showDetail ? 'Ocultar datos del conteo' : 'Ver datos del conteo'} onClick={() => setShowDetail(value => !value)}>
+          <div className="flex items-center gap-2 border-t pt-3 sm:justify-end">
+            <Button className="min-h-11 flex-1 sm:flex-none" size="sm" variant="outline" title={showDetail ? 'Ocultar datos del conteo' : 'Ver datos del conteo'} onClick={() => setShowDetail(value => !value)}>
               {showDetail ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
               {showDetail ? 'Ocultar datos' : 'Ver datos'}
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              title={estadoAbierto ? 'Cerrar sesión' : 'Reabrir sesión'}
-              onClick={() => onToggleEstado(conteo)}
-              className={estadoAbierto ? 'text-amber-500 hover:text-amber-600' : 'text-green-500 hover:text-green-600'}
-            >
-              {estadoAbierto ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            <Button className="h-11 w-11" size="icon" variant="ghost" title={estadoAbierto ? 'Cerrar sesión' : 'Reabrir sesión'} aria-label={estadoAbierto ? 'Cerrar sesión' : 'Reabrir sesión'} onClick={() => onToggleEstado(conteo)}>
+              {estadoAbierto ? <Lock className="h-4 w-4 text-amber-600" /> : <Unlock className="h-4 w-4 text-green-600" />}
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={() => onDelete(conteo)}
-            >
-              <Trash2 className="w-4 h-4" />
+            <Button className="h-11 w-11" size="icon" variant="ghost" title="Eliminar sesión" aria-label="Eliminar sesión" onClick={() => onDelete(conteo)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         </CardContent>

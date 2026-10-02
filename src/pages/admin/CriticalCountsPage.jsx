@@ -230,7 +230,68 @@ export default function CriticalCountsPage() {
                 <p className="text-sm text-muted-foreground">Márcalos desde Tiendas &gt; Artículos &gt; Editar artículo.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="lg:hidden">
+                <div className="grid grid-cols-7 gap-1 border-b bg-muted/20 p-2">
+                  {weekDays.map(day => {
+                    const key = dateKey(day);
+                    const count = counts.find(item => item.fecha === key);
+                    const isSelected = selectedDate === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedDate(key)}
+                        aria-pressed={isSelected}
+                        aria-label={`${new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).format(day)}${count ? `, ${count.estado}, ${count.operador_nombre}` : ', sin conteo'}`}
+                        className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center ${isSelected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                      >
+                        <span className="text-[10px] capitalize">{new Intl.DateTimeFormat('es-MX', { weekday: 'short' }).format(day).replace('.', '')}</span>
+                        <span className="text-sm font-semibold">{day.getDate()}</span>
+                        {count && <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-primary-foreground' : count.estado === 'revisado' ? 'bg-green-600' : 'bg-amber-500'}`} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="space-y-2 p-3">
+                  {loading ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">Cargando día...</p>
+                  ) : products.map(product => {
+                    const detail = detailsByProduct.get(product.id);
+                    const difference = selectedCount?.estado === 'revisado' && detail
+                      ? getDifference(detail.cantidad_contada, detail.existencia_sistema)
+                      : null;
+                    return (
+                      <article key={product.id} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-card p-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-xs text-muted-foreground">{product.codigo_barras}</span>
+                          <span className="block break-words text-sm font-medium">{product.nombre_producto}</span>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {detail ? (
+                            <>
+                              <span className="block text-sm font-semibold tabular-nums">{formatQuantity(detail.cantidad_contada)} {product.unidad}</span>
+                              {difference !== null && <span className={`block text-xs font-semibold tabular-nums ${difference < 0 ? 'text-destructive' : difference > 0 ? 'text-amber-700' : 'text-green-700'}`}>{difference > 0 ? '+' : ''}{formatQuantity(difference)} {product.unidad}</span>}
+                            </>
+                          ) : <span className="text-sm text-muted-foreground">—</span>}
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {!loading && selectedCount && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t px-1 pt-3 text-sm">
+                      <span className="text-muted-foreground">Conteo de <strong className="text-foreground">{selectedCount.operador_nombre}</strong></span>
+                      {(() => {
+                        const summary = getDailyVarianceSummary(selectedCount);
+                        return summary ? <span className={`font-semibold ${summary.withDifference ? 'text-amber-700' : 'text-green-700'}`}>{summary.withDifference} / {summary.total} SKUs con diferencia</span> : <span className="text-amber-700">Pendiente de revisión</span>;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {products.length > 0 && (
+              <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                     <tr>
@@ -318,7 +379,38 @@ export default function CriticalCountsPage() {
                 </span>
               </div>
 
-              <div className="overflow-x-auto rounded-lg border">
+              <div className="space-y-2 lg:hidden">
+                {selectedDetails.map(detail => {
+                  const product = products.find(item => item.id === detail.producto_id);
+                  const difference = getDifference(detail.cantidad_contada, systemValues[detail.producto_id]);
+                  return (
+                    <article key={detail.producto_id} className="space-y-3 rounded-lg border p-3">
+                      <div>
+                        <span className="block text-xs text-muted-foreground">{product?.codigo_barras || ''}</span>
+                        <span className="break-words text-sm font-medium">{product?.nombre_producto || 'Artículo'}</span>
+                      </div>
+                      <div className="grid grid-cols-2 items-end gap-3">
+                        <div className="min-w-0">
+                          <span className="block text-xs text-muted-foreground">Conteo al cierre</span>
+                          <span className="mt-2 block text-sm font-semibold tabular-nums">{formatQuantity(detail.cantidad_contada)} {product?.unidad}</span>
+                        </div>
+                        <label className="min-w-0 space-y-1 text-xs text-muted-foreground">
+                          <span>Existencia sistema</span>
+                          <Input type="number" min="0" step="any" inputMode="decimal" aria-label={`Existencia del sistema para ${product?.nombre_producto || 'artículo'}`} value={systemValues[detail.producto_id] ?? ''} onChange={event => setSystemValues(current => ({ ...current, [detail.producto_id]: event.target.value }))} disabled={selectedCount.estado === 'revisado'} className="w-full" />
+                        </label>
+                      </div>
+                      <div className="flex items-center justify-between border-t pt-2 text-xs">
+                        <span className="text-muted-foreground">Diferencia</span>
+                        <span className={`font-semibold tabular-nums ${difference === null ? 'text-muted-foreground' : difference < 0 ? 'text-destructive' : difference > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                          {difference === null ? 'Pendiente' : `${difference > 0 ? '+' : ''}${formatQuantity(difference)} ${product?.unidad}`}
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto rounded-lg border lg:block">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                     <tr>

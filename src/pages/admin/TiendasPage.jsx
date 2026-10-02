@@ -279,24 +279,26 @@ export default function TiendasPage() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <Card>
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className="bg-primary/10 p-2 rounded-lg">
-                      <Store className="w-5 h-5 text-primary" />
+                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
+                    <div className="flex min-w-0 items-center gap-4 sm:flex-1">
+                      <div className="shrink-0 rounded-lg bg-primary/10 p-2">
+                        <Store className="h-5 w-5 text-primary" />
+                      </div>
+
+                      {editingId === tienda.id ? (
+                        <Input
+                          value={editingName}
+                          onChange={e => setEditingName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditingId(null); }}
+                          autoFocus
+                          className="min-w-0 flex-1"
+                        />
+                      ) : (
+                        <span className="min-w-0 flex-1 truncate font-medium">{tienda.nombre}</span>
+                      )}
                     </div>
 
-                    {editingId === tienda.id ? (
-                      <Input
-                        value={editingName}
-                        onChange={e => setEditingName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditingId(null); }}
-                        autoFocus
-                        className="flex-1"
-                      />
-                    ) : (
-                      <span className="flex-1 font-medium">{tienda.nombre}</span>
-                    )}
-
-                    <div className="flex gap-2">
+                    <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                       {editingId === tienda.id ? (
                         <>
                           <Button size="icon" variant="ghost" onClick={handleSave} className="text-green-500 hover:text-green-600">
