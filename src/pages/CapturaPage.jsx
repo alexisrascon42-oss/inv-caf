@@ -28,6 +28,10 @@ import { requireSupabase } from '../lib/supabase';
 export default function CapturaPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
+  const [criticalQuantities, setCriticalQuantities] = useState({});
+  const [criticalError, setCriticalError] = useState('');
+  const [criticalSending, setCriticalSending] = useState(false);
+  const [criticalSubmitted, setCriticalSubmitted] = useState(false);
   
   useEffect(() => {
     const saved = localStorage.getItem('inv_session');
@@ -40,7 +44,9 @@ export default function CapturaPage() {
     }
   }, []);
 
-  const { productos } = useProductos(session?.tiendaId);
+  const isCriticalSession = session?.modo === 'critico';
+  const { productos: storeProducts } = useProductos(isCriticalSession ? null : session?.tiendaId);
+  const productos = isCriticalSession ? session.productosCriticos || [] : storeProducts;
   const { 
     registros, 
     addRegistro, 
@@ -59,9 +65,13 @@ export default function CapturaPage() {
 
   const [lastAction, setLastAction] = useState(null); // { id, item, isNoCatalogado }
 
+  useEffect(() => {
+    if (isCriticalSession) setCriticalQuantities(session.criticalQuantities || {});
+  }, [isCriticalSession, session?.codigoAcceso]);
+
   // Load areas for the store
   useEffect(() => {
-    if (session?.tiendaId) {
+    if (session?.tiendaId && !isCriticalSession) {
       requireSupabase().from('areas').select('*').eq('tienda_id', session.tiendaId).order('nombre').then(({ data, error }) => {
         if (error) throw error;
         const res = data || [];
@@ -78,7 +88,7 @@ export default function CapturaPage() {
         }
       }).catch(console.error);
     }
-  }, [session]);
+  }, [session, isCriticalSession]);
 
   const handleAddArea = async () => {
     const name = window.prompt("Nombre de la nueva área:");
@@ -117,7 +127,26 @@ export default function CapturaPage() {
   }, [productos, searchQuery]);
 
   const handleCapture = async (cantidadTotal) => {
-    if (!activeArea || !session) return;
+    if (!session || (!isCriticalSession && !activeArea)) return;
+
+    if (isCriticalSession) {
+      if (!selectedProduct || !Number.isFinite(Number(cantidadTotal)) || Number(cantidadTotal) < 0) return;
+      const previousValue = criticalQuantities[selectedProduct.id];
+      const nextQuantities = { ...criticalQuantities, [selectedProduct.id]: Number(cantidadTotal) };
+      setCriticalQuantities(nextQuantities);
+      setCriticalError('');
+      setCriticalSubmitted(false);
+      localStorage.setItem('inv_session', JSON.stringify({ ...session, criticalQuantities: nextQuantities }));
+      setLastAction({
+        isCritical: true,
+        productId: selectedProduct.id,
+        previousValue,
+        item: { nombre_producto: selectedProduct.nombre_producto, cantidad: Number(cantidadTotal), area: 'Conteo crítico' }
+      });
+      setSelectedProduct(null);
+      setCantidadInput('');
+      return;
+    }
     
     let id;
     let isNoCatalogado = false;
@@ -145,9 +174,38 @@ export default function CapturaPage() {
 
   const handleUndo = async () => {
     if (lastAction) {
+      if (lastAction.isCritical) {
+        const nextQuantities = { ...criticalQuantities };
+        if (lastAction.previousValue === undefined) delete nextQuantities[lastAction.productId];
+        else nextQuantities[lastAction.productId] = lastAction.previousValue;
+        setCriticalQuantities(nextQuantities);
+        localStorage.setItem('inv_session', JSON.stringify({ ...session, criticalQuantities: nextQuantities }));
+        setCriticalSubmitted(false);
+        setLastAction(null);
+        return;
+      }
       await deleteRegistro(lastAction.id, lastAction.isNoCatalogado);
       setLastAction(null);
     }
+  };
+
+  const finishCriticalCount = async () => {
+    const missingProducts = productos.filter(product => !Object.hasOwn(criticalQuantities, product.id));
+    if (missingProducts.length) {
+      setCriticalError(`Faltan ${missingProducts.length} artículos. Captura una cantidad o cero en cada artículo antes de enviar.`);
+      return;
+    }
+
+    setCriticalSending(true);
+    setCriticalError('');
+    const { error } = await requireSupabase().rpc('submit_critical_daily_count', {
+      p_codigo: session.codigoAcceso,
+      p_operador: session.operador,
+      p_capturas: productos.map(product => ({ producto_id: product.id, cantidad: Number(criticalQuantities[product.id]) }))
+    });
+    if (error) setCriticalError(error.message || 'No se pudo enviar el conteo diario.');
+    else setCriticalSubmitted(true);
+    setCriticalSending(false);
   };
 
   const handleExitSession = () => {
@@ -163,7 +221,7 @@ export default function CapturaPage() {
         <div className="bg-primary/10 p-4 rounded-3xl mb-4">
           <Store className="w-12 h-12 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">No hay sesión activa</h2>
+        <h2 className="text-2xl font-bold mb-2">No hay conteo activo</h2>
         <p className="text-muted-foreground text-sm max-w-sm mb-6">
           Selecciona una tienda, sesión de conteo y área para comenzar a registrar productos.
         </p>
@@ -175,7 +233,7 @@ export default function CapturaPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-64px)] bg-background">
+    <div className={`flex flex-col ${isCriticalSession ? 'min-h-screen' : 'min-h-[calc(100vh-64px)]'} bg-background`}>
       {/* 1. Header / Sesión Activa */}
       <div className="bg-card border-b px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center space-x-3 min-w-0">
@@ -190,7 +248,7 @@ export default function CapturaPage() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             </div>
             <p className="text-xs text-muted-foreground truncate">
-              {session.conteoNombre || 'Sesión en curso'} • Op: <strong className="text-foreground font-medium">{session.operador}</strong>
+              {isCriticalSession ? 'Conteo crítico diario' : session.conteoNombre || 'Sesión en curso'} • Op: <strong className="text-foreground font-medium">{session.operador}</strong>
             </p>
           </div>
         </div>
@@ -198,11 +256,12 @@ export default function CapturaPage() {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            onClick={() => setShowFinalizarModal(true)}
+            onClick={isCriticalSession ? finishCriticalCount : () => setShowFinalizarModal(true)}
+            disabled={isCriticalSession && (criticalSending || criticalSubmitted)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9 px-3 rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>Enviar Conteo</span>
+            {criticalSubmitted ? <PackageCheck className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+            <span>{criticalSending ? 'Enviando...' : criticalSubmitted ? 'Enviado' : 'Enviar Conteo'}</span>
           </Button>
 
           <button 
@@ -217,22 +276,15 @@ export default function CapturaPage() {
 
       {/* 2. Área Activa y Barra de Búsqueda */}
       <div className="p-4 border-b bg-card/90 backdrop-blur-xl sticky top-0 z-10 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Área de conteo
-          </span>
-          <span className="text-xs text-primary font-medium">
-            {areas.length} áreas registradas
-          </span>
-        </div>
-        
-        <AreaChips 
-          areas={areas} 
-          selectedArea={activeArea} 
-          onSelect={setActiveArea} 
-          onAdd={handleAddArea} 
-        />
-
+        {!isCriticalSession && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Área de conteo</span>
+              <span className="text-xs text-primary font-medium">{areas.length} áreas registradas</span>
+            </div>
+            <AreaChips areas={areas} selectedArea={activeArea} onSelect={setActiveArea} onAdd={handleAddArea} />
+          </>
+        )}
         <div className="pt-1">
           <SearchBar 
             onSearch={setSearchQuery} 
@@ -250,7 +302,16 @@ export default function CapturaPage() {
           onDismiss={() => setLastAction(null)} 
         />
 
-        {/* KPI Cards del Área */}
+        {isCriticalSession ? (
+          <div className="space-y-2">
+            <div className="rounded-xl border bg-card p-3 text-sm">
+              <span className="font-semibold">Artículos capturados: {Object.keys(criticalQuantities).length} de {productos.length}</span>
+              <p className="mt-1 text-xs text-muted-foreground">Captura una cantidad por artículo, incluido cero si no hay existencia.</p>
+            </div>
+            {criticalError && <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{criticalError}</p>}
+            {criticalSubmitted && <p className="rounded-lg border border-green-500/30 bg-green-500/5 p-3 text-sm text-green-700" role="status">Conteo diario enviado correctamente.</p>}
+          </div>
+        ) : (
         <div className="grid grid-cols-3 gap-2.5">
           <div className="bg-card border border-border/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between text-muted-foreground mb-1">
@@ -285,15 +346,14 @@ export default function CapturaPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Sección de Catálogo de Productos Completo */}
         <div className="space-y-3 pt-1">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Package className="w-3.5 h-3.5 text-primary" />
-              {searchQuery 
-                ? `Resultados (${displayedProducts.length})` 
-                : `Catálogo de Productos (${displayedProducts.length})`}
+              {isCriticalSession ? `Artículos Críticos (${displayedProducts.length})` : searchQuery ? `Resultados (${displayedProducts.length})` : `Catálogo de Productos (${displayedProducts.length})`}
             </h3>
             {searchQuery && (
               <button 
@@ -308,9 +368,9 @@ export default function CapturaPage() {
           {productos.length === 0 ? (
             <div className="border border-dashed rounded-2xl p-8 text-center bg-muted/20">
               <Package className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="font-semibold text-sm text-foreground">Catálogo vacío</p>
+              <p className="font-semibold text-sm text-foreground">{isCriticalSession ? 'No hay artículos críticos' : 'Catálogo vacío'}</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                No hay productos en esta tienda. Puedes importar un catálogo desde el panel de Administrador.
+                {isCriticalSession ? 'Pide al gerente que marque los artículos críticos en el catálogo.' : 'No hay productos en esta tienda. Puedes importar un catálogo desde el panel de Administrador.'}
               </p>
             </div>
           ) : displayedProducts.length === 0 && searchQuery ? (
@@ -323,20 +383,16 @@ export default function CapturaPage() {
                 <Package className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-semibold text-foreground text-sm">Producto no encontrado</p>
+                <p className="font-semibold text-foreground text-sm">{isCriticalSession ? 'Artículo crítico no encontrado' : 'Producto no encontrado'}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  No existe un producto con el SKU o nombre "{searchQuery}".
+                    {isCriticalSession ? `No existe un artículo crítico con el SKU o nombre "${searchQuery}".` : `No existe un producto con el SKU o nombre "${searchQuery}".`}
                 </p>
               </div>
-              <Button 
-                className="w-full rounded-xl" 
-                onClick={() => {
-                  setIsCustomCaptura(true);
-                  setCantidadInput('');
-                }}
-              >
-                Registrar "{searchQuery}" como no catalogado
-              </Button>
+                {!isCriticalSession && (
+                  <Button className="w-full rounded-xl" onClick={() => { setIsCustomCaptura(true); setCantidadInput(''); }}>
+                    Registrar "{searchQuery}" como no catalogado
+                  </Button>
+                )}
             </motion.div>
           ) : (
             <div className="space-y-2.5">
@@ -345,6 +401,8 @@ export default function CapturaPage() {
                   key={p.id} 
                   product={p} 
                   selected={selectedProduct?.id === p.id}
+                  countedQty={isCriticalSession ? Number(criticalQuantities[p.id] || 0) : 0}
+                  hasCounted={isCriticalSession ? Object.hasOwn(criticalQuantities, p.id) : undefined}
                   onClick={(prod) => {
                     setSelectedProduct(prod);
                     setIsCustomCaptura(false);
@@ -365,7 +423,7 @@ export default function CapturaPage() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-16 left-0 right-0 bg-card border-t p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] rounded-t-3xl z-40 max-h-[85vh] overflow-y-auto no-scrollbar"
+            className={`fixed ${isCriticalSession ? 'bottom-0' : 'bottom-16'} left-0 right-0 bg-card border-t p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.15)] rounded-t-3xl z-40 max-h-[85vh] overflow-y-auto no-scrollbar`}
           >
             <div className="max-w-md mx-auto space-y-3">
               <div className="flex justify-between items-start">
@@ -374,9 +432,7 @@ export default function CapturaPage() {
                     <span className="text-[10px] font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md">
                       {selectedProduct ? 'Capturando' : 'No Catalogado'}
                     </span>
-                    <span className="text-xs text-muted-foreground font-medium">
-                      en {activeArea}
-                    </span>
+                    {!isCriticalSession && <span className="text-xs text-muted-foreground font-medium">en {activeArea}</span>}
                   </div>
                   <h3 className="text-base font-bold truncate text-foreground">
                     {selectedProduct ? selectedProduct.nombre_producto : searchQuery}
@@ -413,9 +469,9 @@ export default function CapturaPage() {
                   className="h-14 px-8 rounded-xl shrink-0 font-bold text-base shadow-md" 
                   onClick={() => {
                     const res = evaluateExpression(cantidadInput);
-                    if (res !== null && res > 0) handleCapture(res);
+                    if (res !== null && (isCriticalSession ? res >= 0 : res > 0)) handleCapture(res);
                   }}
-                  disabled={!cantidadInput || evaluateExpression(cantidadInput) <= 0}
+                  disabled={!cantidadInput || (isCriticalSession ? evaluateExpression(cantidadInput) < 0 : evaluateExpression(cantidadInput) <= 0)}
                 >
                   Confirmar
                 </Button>
@@ -432,7 +488,7 @@ export default function CapturaPage() {
       </AnimatePresence>
 
       {/* 5. Modal para Enviar y Finalizar Conteo */}
-      <FinalizarConteoModal
+      {!isCriticalSession && <FinalizarConteoModal
         isOpen={showFinalizarModal}
         onClose={() => setShowFinalizarModal(false)}
         session={session}
@@ -441,7 +497,7 @@ export default function CapturaPage() {
           localStorage.removeItem('inv_session');
           navigate('/');
         }}
-      />
+      />}
     </div>
   );
 }

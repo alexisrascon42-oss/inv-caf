@@ -1,19 +1,24 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Download, FileSpreadsheet, Home, LogOut, Menu, Store, Upload } from 'lucide-react';
+import { Activity, ClipboardList, Download, FileSpreadsheet, Home, LogOut, Menu, Store, Upload } from 'lucide-react';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { isDevUser } from '../../lib/devAccess';
 
 const navItems = [
   { to: '/admin/tiendas', icon: Store, label: 'Tiendas' },
   { to: '/admin/catalogo', icon: Upload, label: 'Catálogo' },
   { to: '/admin/sesiones', icon: FileSpreadsheet, label: 'Sesiones' },
+  { to: '/admin/criticos', icon: ClipboardList, label: 'Conteo crítico' },
   { to: '/admin/exportar', icon: Download, label: 'Exportar' }
 ];
 
 export default function AdminLayout() {
   const { user, signOut } = useAuth();
+  const visibleNavItems = isDevUser(user)
+    ? [...navItems, { to: '/admin/dev', icon: Activity, label: 'Dev' }]
+    : navItems;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -35,7 +40,7 @@ export default function AdminLayout() {
             </button>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-3 no-scrollbar">
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {visibleNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}

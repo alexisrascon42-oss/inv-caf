@@ -74,11 +74,17 @@ export function useConteos(tiendaId) {
     setConteos(current => current.map(conteo => conteo.id === id ? { ...conteo, estado } : conteo));
   };
 
+  const updateExpiration = async (id, expiresAt) => {
+    const { error } = await requireSupabase().from('conteos').update({ expires_at: expiresAt }).eq('id', id);
+    if (error) throw error;
+    setConteos(current => current.map(conteo => conteo.id === id ? { ...conteo, expires_at: expiresAt } : conteo));
+  };
+
   const deleteConteo = async (id) => {
     const { error } = await requireSupabase().from('conteos').delete().eq('id', id);
     if (error) throw error;
     setConteos(current => current.filter(conteo => conteo.id !== id));
   };
 
-  return { conteos, addConteo, updateEstado, deleteConteo };
+  return { conteos, addConteo, updateEstado, updateExpiration, deleteConteo };
 }

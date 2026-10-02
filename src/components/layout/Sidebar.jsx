@@ -1,8 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Store, Upload, FileSpreadsheet, Download, Home, LogOut } from 'lucide-react';
+import { Store, Upload, FileSpreadsheet, Download, Home, LogOut, Activity, ClipboardList } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
+import { isDevUser } from '../../lib/devAccess';
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
@@ -10,8 +11,10 @@ export function Sidebar() {
     { to: "/admin/tiendas", icon: Store, label: "Tiendas" },
     { to: "/admin/catalogo", icon: Upload, label: "Importar Catálogo" },
     { to: "/admin/sesiones", icon: FileSpreadsheet, label: "Sesiones de Conteo" },
+    { to: "/admin/criticos", icon: ClipboardList, label: "Conteo Crítico" },
     { to: "/admin/exportar", icon: Download, label: "Exportar Reportes" },
   ];
+  if (isDevUser(user)) navItems.push({ to: '/admin/dev', icon: Activity, label: 'Dev' });
 
   return (
     <aside className="w-64 border-r bg-card min-h-screen hidden md:flex flex-col">

@@ -21,7 +21,8 @@ create table if not exists public.conteos (
   nombre_sesion text not null,
   codigo_acceso text not null,
   estado text not null default 'abierto' check (estado in ('abierto', 'cerrado')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '24 hours')
 );
 
 -- Migration for projects created with the first version of the schema.
@@ -74,18 +75,36 @@ alter table public.registros_detalle enable row level security;
 alter table public.productos_no_catalogados enable row level security;
 alter table public.conteo_operadores enable row level security;
 
+create or replace function public.enforce_conteo_expiration()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.estado = 'abierto' and new.expires_at <= now() then
+    raise exception 'Actualiza el vencimiento antes de abrir esta sesión';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_conteo_expiration on public.conteos;
+create trigger enforce_conteo_expiration
+before insert or update on public.conteos
+for each row execute function public.enforce_conteo_expiration();
+
 create policy "admin gestiona sus tiendas" on public.tiendas for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy "admin gestiona sus productos" on public.productos for all to authenticated using (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid())) with check (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid()));
-create policy "operador consulta catalogo asignado" on public.productos for select to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = productos.tienda_id and c.estado = 'abierto'));
+create policy "operador consulta catalogo asignado" on public.productos for select to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = productos.tienda_id and c.estado = 'abierto' and c.expires_at > now()));
 create policy "admin gestiona sus conteos" on public.conteos for all to authenticated using (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid())) with check (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid()));
 create policy "operador consulta conteo asignado" on public.conteos for select to authenticated using (exists (select 1 from public.conteo_operadores co where co.conteo_id = conteos.id and co.operador_id = auth.uid()));
 create policy "admin gestiona sus areas" on public.areas for all to authenticated using (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid())) with check (exists (select 1 from public.tiendas t where t.id = tienda_id and t.owner_id = auth.uid()));
-create policy "operador consulta areas asignadas" on public.areas for select to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = areas.tienda_id and c.estado = 'abierto'));
-create policy "operador crea areas asignadas" on public.areas for insert to authenticated with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = tienda_id and c.estado = 'abierto'));
+create policy "operador consulta areas asignadas" on public.areas for select to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = areas.tienda_id and c.estado = 'abierto' and c.expires_at > now()));
+create policy "operador crea areas asignadas" on public.areas for insert to authenticated with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.tienda_id = tienda_id and c.estado = 'abierto' and c.expires_at > now()));
 create policy "admin gestiona sus registros" on public.registros_detalle for all to authenticated using (exists (select 1 from public.conteos c join public.tiendas t on t.id = c.tienda_id where c.id = conteo_id and t.owner_id = auth.uid())) with check (exists (select 1 from public.conteos c join public.tiendas t on t.id = c.tienda_id where c.id = conteo_id and t.owner_id = auth.uid()));
-create policy "operador gestiona registros asignados" on public.registros_detalle for all to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto')) with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto'));
+create policy "operador gestiona registros asignados" on public.registros_detalle for all to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto' and c.expires_at > now())) with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto' and c.expires_at > now()));
 create policy "admin gestiona sus no catalogados" on public.productos_no_catalogados for all to authenticated using (exists (select 1 from public.conteos c join public.tiendas t on t.id = c.tienda_id where c.id = conteo_id and t.owner_id = auth.uid())) with check (exists (select 1 from public.conteos c join public.tiendas t on t.id = c.tienda_id where c.id = conteo_id and t.owner_id = auth.uid()));
-create policy "operador gestiona no catalogados asignados" on public.productos_no_catalogados for all to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto')) with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto'));
+create policy "operador gestiona no catalogados asignados" on public.productos_no_catalogados for all to authenticated using (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto' and c.expires_at > now())) with check (exists (select 1 from public.conteo_operadores co join public.conteos c on c.id = co.conteo_id where co.operador_id = auth.uid() and c.id = conteo_id and c.estado = 'abierto' and c.expires_at > now()));
 create policy "usuario consulta sus asignaciones" on public.conteo_operadores for select to authenticated using (operador_id = auth.uid());
 
 create or replace function public.claim_conteo_access(p_codigo text)
@@ -97,15 +116,25 @@ begin
   return query
     select c.id, c.tienda_id, c.nombre_sesion, c.estado, c.codigo_acceso, t.nombre
     from public.conteos c join public.tiendas t on t.id = c.tienda_id
-    where upper(c.codigo_acceso) = upper(trim(p_codigo)) and c.estado = 'abierto';
+    where upper(c.codigo_acceso) = upper(trim(p_codigo)) and c.estado = 'abierto' and c.expires_at > now();
   if not found then raise exception 'Código de sesión inválido o cerrado'; end if;
   insert into public.conteo_operadores (conteo_id, operador_id)
   select c.id, auth.uid() from public.conteos c
-  where upper(c.codigo_acceso) = upper(trim(p_codigo)) and c.estado = 'abierto'
+  where upper(c.codigo_acceso) = upper(trim(p_codigo)) and c.estado = 'abierto' and c.expires_at > now()
   on conflict (conteo_id, operador_id) do nothing;
 end;
 $$;
 grant execute on function public.claim_conteo_access(text) to anon, authenticated;
+
+create extension if not exists pg_cron with schema pg_catalog;
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'close-expired-inventory-counts';
+select cron.schedule(
+  'close-expired-inventory-counts',
+  '* * * * *',
+  $job$update public.conteos set estado = 'cerrado' where estado = 'abierto' and expires_at <= now();$job$
+);
 
 alter publication supabase_realtime add table public.registros_detalle;
 alter publication supabase_realtime add table public.productos_no_catalogados;

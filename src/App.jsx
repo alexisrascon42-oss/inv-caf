@@ -20,6 +20,9 @@ import CatalogoPage from './pages/admin/CatalogoPage';
 import SesionesPage from './pages/admin/SesionesPage';
 import ExportarPage from './pages/admin/ExportarPage';
 import AdminAuthPage from './pages/admin/AdminAuthPage';
+import DevPage from './pages/admin/DevPage';
+import ProtectedDevRoute from './components/auth/ProtectedDevRoute';
+import CriticalCountsPage from './pages/admin/CriticalCountsPage';
 
 export default function App() {
   return (
@@ -28,7 +31,6 @@ export default function App() {
         <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/setup" element={<SetupPage />} />
-
         {/* Operador Rutas */}
         <Route path="/operador" element={<OperadorLayout />}>
           <Route index element={<Navigate to="captura" replace />} />
@@ -45,6 +47,8 @@ export default function App() {
           <Route path="catalogo" element={<CatalogoPage />} />
           <Route path="sesiones" element={<SesionesPage />} />
           <Route path="exportar" element={<ExportarPage />} />
+          <Route path="criticos" element={<CriticalCountsPage />} />
+          <Route path="dev" element={<ProtectedDevRoute><DevPage /></ProtectedDevRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

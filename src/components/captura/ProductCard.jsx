@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { Package, Check, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export function ProductCard({ product, onClick, selected, countedQty = 0 }) {
-  const isCounted = countedQty > 0;
+export function ProductCard({ product, onClick, selected, countedQty = 0, hasCounted }) {
+  const isCounted = hasCounted ?? (countedQty > 0);
 
   return (
     <motion.div
